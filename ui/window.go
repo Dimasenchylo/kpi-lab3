@@ -25,8 +25,9 @@ type Visualizer struct {
 	tx   chan screen.Texture
 	done chan struct{}
 
-	sz  size.Event
-	pos image.Rectangle
+	sz        size.Event
+	pos       image.Rectangle
+	centerPos image.Point
 }
 
 func (pw *Visualizer) Main() {
@@ -34,6 +35,7 @@ func (pw *Visualizer) Main() {
 	pw.done = make(chan struct{})
 	pw.pos.Max.X = 200
 	pw.pos.Max.Y = 200
+	pw.centerPos = image.Point{X: 400, Y: 400}
 	driver.Main(pw.run)
 }
 
@@ -47,7 +49,9 @@ func (pw *Visualizer) run(s screen.Screen) {
 	}
 
 	w, err := s.NewWindow(&screen.NewWindowOptions{
-		Title: pw.Title,
+		Title:  pw.Title,
+		Width:  800,
+		Height: 800,
 	})
 	if err != nil {
 		log.Fatal("Failed to initialize the app window:", err)
@@ -115,7 +119,10 @@ func (pw *Visualizer) handleEvent(e any, t screen.Texture) {
 
 	case mouse.Event:
 		if t == nil {
-			// TODO: Реалізувати реакцію на натискання кнопки миші.
+			if e.Button == mouse.ButtonLeft && e.Direction == mouse.DirPress {
+				pw.centerPos = image.Point{X: int(e.X), Y: int(e.Y)}
+				pw.w.Send(paint.Event{})
+			}
 		}
 
 	case paint.Event:
@@ -131,11 +138,14 @@ func (pw *Visualizer) handleEvent(e any, t screen.Texture) {
 }
 
 func (pw *Visualizer) drawDefaultUI() {
-	pw.w.Fill(pw.sz.Bounds(), color.Black, draw.Src) // Фон.
+	pw.w.Fill(pw.sz.Bounds(), color.Black, draw.Src)
 
-	// TODO: Змінити колір фону та додати відображення фігури у вашому варіанті.
+	x, y := pw.centerPos.X, pw.centerPos.Y
+	c := color.RGBA{R: 255, G: 255, B: 0, A: 1}
 
-	// Малювання білої рамки.
+	pw.w.Fill(image.Rect(x-125, y-90, x+125, y), c, draw.Src)
+	pw.w.Fill(image.Rect(x-45, y, x+45, y+90), c, draw.Src)
+
 	for _, br := range imageutil.Border(pw.sz.Bounds(), 10) {
 		pw.w.Fill(br, color.White, draw.Src)
 	}
