@@ -3,32 +3,42 @@ package lang
 import (
 	"bufio"
 	"fmt"
-	"github.com/Dimasenchylo/kpi-lab3/painter"
 	"io"
 	"strconv"
 	"strings"
+
+	"github.com/Dimasenchylo/kpi-lab3/painter"
 )
 
-type Parser struct {
-	lastBgColor painter.Operation
-	lastBgRect  *painter.BgRectangle
-	figures     []painter.Figure
-	moveOps     []painter.Operation
-	updateOp    painter.Operation
+type UIState struct {
+	BackgroundColor painter.Operation
+	BackgroundRect  *painter.BgRectangle
+	Figures         []painter.Figure
+	MoveOps         []painter.Operation
+	UpdateOp        painter.Operation
 }
 
-func (p *Parser) initialize() {
-	if p.lastBgColor == nil {
-		p.lastBgColor = painter.OperationFunc(painter.ClearScreen)
-	}
-	if p.updateOp != nil {
-		p.updateOp = nil
+func (s *UIState) Reset() {
+	s.BackgroundColor = nil
+	s.BackgroundRect = nil
+	s.Figures = nil
+	s.MoveOps = nil
+	s.UpdateOp = nil
+}
+
+type Parser struct {
+	State *UIState
+}
+
+func NewParser() *Parser {
+	return &Parser{
+		State: &UIState{},
 	}
 }
 
 // Parse reads and parses input from the provided io.Reader and returns the corresponding list of painter.Operation.
 func (p *Parser) Parse(in io.Reader) ([]painter.Operation, error) {
-	p.initialize()
+	p.State.Reset()
 	scanner := bufio.NewScanner(in)
 	scanner.Split(bufio.ScanLines)
 
@@ -45,34 +55,25 @@ func (p *Parser) Parse(in io.Reader) ([]painter.Operation, error) {
 
 func (p *Parser) finalResult() []painter.Operation {
 	var res []painter.Operation
-	if p.lastBgColor != nil {
-		res = append(res, p.lastBgColor)
+	if p.State.BackgroundColor != nil {
+		res = append(res, p.State.BackgroundColor)
 	}
-	if p.lastBgRect != nil {
-		res = append(res, p.lastBgRect)
+	if p.State.BackgroundRect != nil {
+		res = append(res, p.State.BackgroundRect)
 	}
-	if len(p.moveOps) != 0 {
-		res = append(res, p.moveOps...)
+	if len(p.State.MoveOps) != 0 {
+		res = append(res, p.State.MoveOps...)
 	}
-	p.moveOps = nil
-	if len(p.figures) != 0 {
-		println(len(p.figures))
-		for _, figure := range p.figures {
+	p.State.MoveOps = nil
+	if len(p.State.Figures) != 0 {
+		for _, figure := range p.State.Figures {
 			res = append(res, &figure)
 		}
 	}
-	if p.updateOp != nil {
-		res = append(res, p.updateOp)
+	if p.State.UpdateOp != nil {
+		res = append(res, p.State.UpdateOp)
 	}
 	return res
-}
-
-func (p *Parser) resetState() {
-	p.lastBgColor = nil
-	p.lastBgRect = nil
-	p.figures = nil
-	p.moveOps = nil
-	p.updateOp = nil
 }
 
 func (p *Parser) parse(commandLine string) error {
@@ -92,24 +93,24 @@ func (p *Parser) parse(commandLine string) error {
 
 	switch instruction {
 	case "white":
-		p.lastBgColor = painter.OperationFunc(painter.WhiteFill)
+		p.State.BackgroundColor = painter.OperationFunc(painter.WhiteFill)
 	case "green":
-		p.lastBgColor = painter.OperationFunc(painter.GreenFill)
+		p.State.BackgroundColor = painter.OperationFunc(painter.GreenFill)
 	case "bgrect":
-		p.lastBgRect = &painter.BgRectangle{X1: iArgs[0], Y1: iArgs[1], X2: iArgs[2], Y2: iArgs[3]}
+		p.State.BackgroundRect = &painter.BgRectangle{X1: iArgs[0], Y1: iArgs[1], X2: iArgs[2], Y2: iArgs[3]}
 	case "figure":
 		figure := painter.Figure{X: iArgs[0], Y: iArgs[1]}
-		p.figures = append(p.figures, figure)
+		p.State.Figures = append(p.State.Figures, figure)
 	case "move":
-		moveOp := painter.Move{X: iArgs[0], Y: iArgs[1], Figures: p.figures}
-		p.moveOps = append(p.moveOps, &moveOp)
+		moveOp := painter.Move{X: iArgs[0], Y: iArgs[1], Figures: p.State.Figures}
+		p.State.MoveOps = append(p.State.MoveOps, &moveOp)
 	case "reset":
-		p.resetState()
-		p.lastBgColor = painter.OperationFunc(painter.ClearScreen)
+		p.State.Reset()
+		p.State.BackgroundColor = painter.OperationFunc(painter.ClearScreen)
 	case "update":
-		p.updateOp = painter.UpdateOp
+		p.State.UpdateOp = painter.UpdateOp
 	default:
-		return fmt.Errorf("Error with parse %v", commandLine)
+		return fmt.Errorf("error with parse %v", commandLine)
 	}
 	return nil
 }
