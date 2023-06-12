@@ -26,7 +26,7 @@ func TestParserStructure(t *testing.T) {
 			op:      &painter.Figure{X: 250, Y: 250},
 		},
 		{
-			name:    "move to cordinates",
+			name:    "move to coordinates",
 			command: "move 200 200",
 			op:      &painter.Move{X: 200, Y: 200},
 		},
@@ -44,14 +44,14 @@ func TestParserStructure(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			parser := &Parser{}
+			parser := NewParser()
 			ops, err := parser.Parse(strings.NewReader(tc.command))
 			if tc.op == nil {
 				assert.Error(t, err)
 			} else {
 				require.NoError(t, err)
-				assert.IsType(t, tc.op, ops[1])
-				assert.Equal(t, tc.op, ops[1])
+				assert.IsType(t, tc.op, ops[len(ops)-1])
+				assert.Equal(t, tc.op, ops[len(ops)-1])
 			}
 		})
 	}
@@ -74,13 +74,13 @@ func TestParserFunctions(t *testing.T) {
 			op:      painter.OperationFunc(painter.GreenFill),
 		},
 		{
-			name:    "cleare all screen",
+			name:    "clear all screen",
 			command: "reset",
 			op:      painter.OperationFunc(painter.ClearScreen),
 		},
 	}
 	// created Parser object
-	parser := &Parser{}
+	parser := NewParser()
 	// checking loop
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
