@@ -2,6 +2,7 @@ package painter
 
 import (
 	"image"
+	"time"
 
 	"golang.org/x/exp/shiny/screen"
 )
@@ -14,11 +15,10 @@ type Receiver interface {
 // Loop реалізує цикл подій для формування текстури отриманої через виконання операцій отриманих з внутрішньої черги.
 type Loop struct {
 	Receiver Receiver
-
-	next screen.Texture // текстура, яка зараз формується
-	prev screen.Texture // текстура, яка була відправленя останнього разу у Receiver
-
-	Mq messageQueue
+	next     screen.Texture // текстура, яка зараз формується
+	prev     screen.Texture // текстура, яка була відправленя останнього разу у Receiver
+	Mq       MessageQueue
+	stopChan chan struct{}
 }
 
 var size = image.Pt(800, 800)
@@ -27,15 +27,22 @@ var size = image.Pt(800, 800)
 func (l *Loop) Start(s screen.Screen) {
 	l.next, _ = s.NewTexture(size)
 	l.prev, _ = s.NewTexture(size)
-	l.Mq = messageQueue{}
+	l.Mq = MessageQueue{}
+	l.stopChan = make(chan struct{})
 
 	go func() {
 		for {
-			if op := l.Mq.Pull(); op != nil {
-				update := op.Do(l.next)
-				if update {
-					l.Receiver.Update(l.next)
-					l.next, l.prev = l.prev, l.next
+			select {
+			case <-l.stopChan:
+				l.stopChan <- struct{}{} // Підтверджуємо повну зупинку циклу
+				return
+			default:
+				if op := l.Mq.Pull(); op != nil {
+					update := op.Do(l.next)
+					if update {
+						l.Receiver.Update(l.next)
+						l.next, l.prev = l.prev, l.next
+					}
 				}
 			}
 		}
@@ -51,21 +58,24 @@ func (l *Loop) Post(op Operation) {
 
 // StopAndWait сигналізує
 func (l *Loop) StopAndWait() {
-
+	l.stopChan <- struct{}{}
+	<-l.stopChan
 }
 
 // TODO: реалізувати власну чергу повідомлень.
-type messageQueue struct {
+type MessageQueue struct {
 	Queue []Operation
 }
 
-func (Mq *messageQueue) Push(op Operation) {
+func (Mq *MessageQueue) Push(op Operation) {
 	Mq.Queue = append(Mq.Queue, op)
 }
 
-func (Mq *messageQueue) Pull() Operation {
+func (Mq *MessageQueue) Pull() Operation {
 	if len(Mq.Queue) == 0 {
-		return nil
+		for len(Mq.Queue) == 0 {
+			time.Sleep(10 * time.Millisecond)
+		}
 	}
 	op := Mq.Queue[0]
 	Mq.Queue = Mq.Queue[1:]

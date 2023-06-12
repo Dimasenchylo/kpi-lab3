@@ -1,11 +1,10 @@
-package test
+package lang
 
 import (
 	"strings"
 	"testing"
 
 	"github.com/Dimasenchylo/kpi-lab3/painter"
-	"github.com/Dimasenchylo/kpi-lab3/painter/lang"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -45,7 +44,7 @@ func TestParserStructure(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			parser := &lang.Parser{}
+			parser := &Parser{}
 			ops, err := parser.Parse(strings.NewReader(tc.command))
 			if tc.op == nil {
 				assert.Error(t, err)
@@ -81,7 +80,7 @@ func TestParserFunctions(t *testing.T) {
 		},
 	}
 	// created Parser object
-	parser := &lang.Parser{}
+	parser := &Parser{}
 	// checking loop
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
